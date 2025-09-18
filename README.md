@@ -1,6 +1,6 @@
 # New Relic Integration
 
-This is a simple setup to monitor the PowerSync service using New Relic. More details on the metrics and logs we expose can be found in [METRICS.md](./METRICS.md).
+This is a simple setup to monitor the PowerSync service using New Relic. More details on how to use metrics can be found here [METRICS.md](./METRICS.md).
 
 ## Overview
 
