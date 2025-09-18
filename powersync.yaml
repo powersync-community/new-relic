@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-schema@latest/json-schema/powersync-config.json
+port: !env PS_PORT
+
+# Source database to replicate
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      sslmode: disable
+
+# Sync bucket storage connection settings
+storage:
+  type: postgresql
+  uri: !env PS_DATA_SOURCE_URI
+  sslmode: disable 
+
+sync_rules:
+  content: |
+    bucket_definitions:
+      global:
+        data:
+          - SELECT * FROM lists
+          - SELECT * FROM items
+
+# Client (application end user) authentication settings
+client_auth:
+  jwks_uri: !env PS_BACKEND_JWKS_URI
+  audience: ["powersync-dev", "powersync"]
+
+telemetry:
+  disable_telemetry_sharing: true
+  prometheus_port: !env PS_TELEMETRY_PORT

@@ -1,0 +1,76 @@
+services:
+
+  powersync:
+    restart: unless-stopped
+    image: journeyapps/powersync-service:latest
+    volumes:
+      - ./powersync.yaml:/app/powersync.yaml
+      - shared_logs:/app/logs
+    env_file:
+      - .env
+    ports:
+      - ${PS_PORT}:${PS_PORT}
+      - ${PS_TELEMETRY_PORT}:${PS_TELEMETRY_PORT}
+    depends_on:
+      - pg-db
+      - fluent-bit
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: powersync
+    
+  # Log forwarder for New Relic
+  fluent-bit:
+    image: fluent/fluent-bit:latest
+    container_name: fluent-bit-forwarder
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./logs:/var/log 
+    environment:
+      - NEW_RELIC_LICENSE_KEY=${NEW_RELIC_LICENSE_KEY}
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+    depends_on:
+      - powersync
+
+  # Source database
+  pg-db:
+    image: postgres:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - 5432:5432
+    command: ["postgres", "-c", "wal_level=logical"]
+
+  demo-backend:
+    build:
+      context: https://github.com/powersync-ja/powersync-nodejs-backend-todolist-demo.git
+    environment:
+      DATABASE_TYPE: postgres
+      DATABASE_URI: ${PS_DATA_SOURCE_URI}
+      POWERSYNC_URL: powersync-dev # JWT audience
+      JWT_ISSUER: powersync-dev
+      PORT: 6060
+    ports:
+      - 6060:6060
+
+volumes:
+  pg_data:
+  prometheus_data:
+  shared_logs:
