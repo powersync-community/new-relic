@@ -1,6 +1,6 @@
 # Metrics
 
-This potential ways to monitor PowerSync metrics and logs using New Relic.
+These are potential ways to monitor PowerSync metrics and logs using New Relic.
 To read more about what our telemetry exposes, see [here](https://docs.powersync.com/self-hosting/lifecycle-maintenance/telemetry) or about our metrics exporting [here](https://docs.powersync.com/self-hosting/lifecycle-maintenance/metrics).
 
 ## Replication Monitoring
@@ -10,24 +10,24 @@ To read more about what our telemetry exposes, see [here](https://docs.powersync
 - Not exposed directly in metrics.
 - Logs show replication backlog progress (Replicating …, Flushed updates). You can parse these via NR Log Parsing rules to derive queue size if exposed.
 - Alternative: Use `powersync_replication_lag_seconds` as a proxy (lag = effectively unprocessed queue).
-- Record logs from individual clients (in the JS sdk: `PowerSyncDatabase.getUploadQueueStats`) to track their specific queue sizes.
+- Record logs from individual clients either via the SDK (e.g., PowerSyncDatabase.getUploadQueueStats) or by tracking the local SQLite ps_crud table.
 
 ### Processing latency
 
-- Also not a direct metric.
+- Not directly exposed as a metric.
 - Use `powersync_replication_lag_seconds` for replication latency.
 - Optionally parse logs for “Flushed … updates” timestamps to approximate processing times.
 
 ### Error rates
 
-- The various *_total counters like powersync_operations_synced_total for successful operations synced.
+- Use various `*_total` counters, such as powersync_operations_synced_total, to track successful operations synced.
 - From logs: look for "level":"error" messages, count grouped by time.
-- Dashboard widget: Log count query (NRQL: `SELECT count(*) FROM Log WHERE service='PowerSync' AND level='error' TIMESERIES`).
+- Dashboard widget: Log count query (NRQL: `SELECT count(*) FROM Log WHERE service='powersync' AND level='error' TIMESERIES`).
 
 ### Retry counts
 
-- Not in the Prometheus metrics.
-- Parse logs for “retry” keywords and count occurrences.
+- Not directly exposed as a metric.
+- Parse logs for 'retry' keywords and count occurrences.
 
 ### Active connections
 
@@ -46,15 +46,19 @@ Use `powersync_concurrent_connections` gauge (direct).
 
 ### Latency percentiles (p50, p90, p99)
 
-- Not available yet - PowerSync doesn’t export request latency histograms.
-- Workaround: Use database query telemetry if available, or derive from replication lag logs.
+- In reference to request latency, this is not available. 
+- For replication latency, use `powersync_replication_lag_seconds` gauge percentiles:
+
+```sql
+SELECT percentile(powersync_replication_lag_seconds, 50, 90, 99) FROM Metric TIMESERIES
+```
 
 ### Connection pool stats
 
-No pool metrics exposed. If PowerSync logs pool activity, you can parse logs for connection metrics recorder lines.
+No database pool connection metrics are exposed. You can monitor database performance separately (e.g., PostgreSQL stats).
 
 ### Sync Engines status
-
+- You can monitor the startup status via the `/probes/startup` [endpoint](https://docs.n.com/self-hosting/lifecycle-maintenance/healthchecks#health-check-endpoints).
 - Parse logs: "Successfully started Replication Engine", "Loaded sync rules".
 - Create log-based widget: last seen engine init events.
 
